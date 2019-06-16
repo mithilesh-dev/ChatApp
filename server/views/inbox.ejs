@@ -1,0 +1,171 @@
+<div class="messaging">
+  <div class="inbox_msg">
+    <div class="inbox_people">
+      <div class="headind_srch">
+        <div class="recent_heading">
+          <h4>Recent</h4>
+        </div>
+        <div class="srch_bar">
+          <div class="stylish-input-group">
+            <input type="text" class="search-bar" placeholder="Search" />
+            <span class="input-group-addon">
+              <button type="button">
+                <i class="fa fa-search" aria-hidden="true"></i>
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="inbox_chat">
+        <% for (var i=0; i< users.length; i++){ %> <% if(users[i].name!=user){
+        %>
+        <div class="chat_list">
+          <div class="chat_people">
+            <div class="chat_img">
+              <img
+                src="https://ptetutorials.com/images/user-profile.png"
+                alt="mithilesh"
+              />
+            </div>
+            <div class="chat_ib">
+              <h5>
+                <%= users[i].name %>
+              </h5>
+            </div>
+            <input type="hidden" class="u" value="<%= users[i].id %>" />
+          </div>
+        </div>
+        <% } %> <% } %>
+      </div>
+    </div>
+    <div class="mesgs" style="display:none">
+      <div class="msg_history">
+        <div class="col-12 mb-3 pt-0 mt-0">
+          <span id="username"></span>
+        </div>
+      </div>
+      <div class="type_msg">
+        <span class="pencil_anim" style="display:none">Typing.....</span>
+        <div class="input_msg_write">
+          <input
+            type="text"
+            class="write_msg"
+            placeholder="Type a message"
+            style="border:0; outline: none;"
+          />
+          <button class="msg_send_btn" type="button">
+            <i class="fa fa-paper-plane-o" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/javascripts/socket.io.js"></script>
+<script src="/javascripts/moment.min.js"></script>
+<script>
+  $("document").ready(function() {
+    var username = null;
+    var myname = "<%= user %>";
+    var socket = io("http://localhost:7777", {
+      query: {
+        username: "<%= user %>"
+      }
+    });
+    socket.on("connect", function() {
+      //Add all controls here, instead of document load
+    });
+    socket.on("typing", function(data) {
+      if (myname != data.from) {
+        $(".pencil_anim").show();
+      }
+    });
+    socket.on("stoptyping", function(data) {
+      if (myname != data.from) {
+        $(".pencil_anim").hide();
+      }
+    });
+    socket.on("message", function(data) {
+      if (myname.trim() == data.from.trim()) {
+        $(".msg_history").append(
+          `<div class="outgoing_msg">
+                    <div class="sent_msg">
+                        <p>${data.msg}</p>
+                        <span class="time_date"> ${moment().fromNow()}</span>
+                    </div>
+                </div>`
+        );
+      } else if (myname.trim() == data.to.trim()) {
+        $(".msg_history").append(
+          `<div class="incoming_msg">
+                    <div class="incoming_msg_img"><img src="https://ptetutorials.com/images/user-profile.png" alt="${
+                      data.from
+                    }">
+                        <span class="username">${username}</span>
+                        </div>
+                    <div class="received_msg">
+                        <div class="received_withd_msg">
+                            <p>${data.msg}</p>
+                            <span class="time_date"> ${moment().fromNow()}</span>
+                        </div>
+                    </div>
+                </div>`
+        );
+      }
+      $(".pencil_anim").hide();
+    });
+    socket.on("newuser", function(data) {
+      if (data.name != username) {
+        //alert("new user joined")
+      }
+    });
+    socket.on("disconnect", function() {});
+
+    $(".pencil_anim").hide();
+    username = $(this)
+      .find(".chat_ib")
+      .text();
+
+    $(".chat_list").on("click", function() {
+      $(".chat_list").removeClass("active_chat");
+      $(this).addClass("active_chat");
+      $("#username").html(
+        "Talking to <strong>" +
+          $(this)
+            .find(".chat_ib")
+            .text() +
+          "</strong>"
+      );
+      $(".mesgs").show();
+    });
+    $(".msg_send_btn").on("click", function() {
+      sendMessage();
+    });
+    $(".write_msg").keyup(function(event) {
+      var data = $(".write_msg").val();
+      if (data == null || data == "") {
+        socket.emit("stoptyping", {
+          from: myname
+        });
+        return;
+      }
+      socket.emit("typing", {
+        from: myname
+      });
+      if (event.which == 13) {
+        sendMessage();
+      }
+    });
+
+    function sendMessage() {
+      var data = $(".write_msg").val();
+      socket.emit("message", {
+        from: myname,
+        to: username,
+        msg: data
+      });
+      $(".write_msg").val("");
+    }
+  });
+</script>
